@@ -4,6 +4,8 @@ import axios from "axios";
 import Spinner from "./Spinner";
 import { ReactSortable } from "react-sortablejs";
 import { Category } from "@/models/Category";
+import toast from "react-hot-toast";
+import { useSession } from "next-auth/react";
 
 export default function ProductForm({
   _id,
@@ -14,6 +16,8 @@ export default function ProductForm({
   category: assignedCategory,
   properties: assignedProperties,
 }) {
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.isAdmin;
   const [title, setTitle] = useState(exsitingTitle || "");
   const [description, setDescription] = useState(exsitingDescription || "");
   const [category, setCategory] = useState(assignedCategory || "");
@@ -37,6 +41,13 @@ export default function ProductForm({
 
   async function saveProduct(Event) {
     Event.preventDefault();
+
+    // ✅ 前端先檢查一次，直接跳 toast，不打 API
+    if (!isAdmin) {
+      toast.error("你目前沒有管理員權限，無法修改商品資訊");
+      return;
+    }
+
     const data = {
       title,
       description,
@@ -59,6 +70,12 @@ export default function ProductForm({
     router.push("/products");
   }
   async function uploadImages(Event) {
+    // ✅ 前端先檢查一次，直接跳 toast，不打 API
+    if (!isAdmin) {
+      toast.error("你目前沒有管理員權限，無法上傳商品圖檔");
+      return;
+    }
+
     const files = Event.target?.files;
     if (files?.length > 0) {
       setIsUploading(true);

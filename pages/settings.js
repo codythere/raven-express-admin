@@ -3,12 +3,16 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import Spinner from "@/components/Spinner";
 import { withSwal } from "react-sweetalert2";
+import { useSession } from "next-auth/react";
+import toast from "react-hot-toast";
 
 function SettingsPage({ swal }) {
   const [products, setProducts] = useState([]);
   const [featuredProductId, setFeaturedProductId] = useState("");
   const [isLoading, setisLoading] = useState(false);
   const [shippingFee, setShippingFee] = useState("");
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.isAdmin;
 
   useEffect(() => {
     setisLoading(true);
@@ -30,6 +34,12 @@ function SettingsPage({ swal }) {
   }
 
   async function saveSettings() {
+    // ✅ 前端先檢查一次，直接跳 toast，不打 API
+    if (!isAdmin) {
+      toast.error("你目前沒有管理員權限，無法修改設定");
+      return;
+    }
+
     setisLoading(true);
     await axios.put("/api/settings", {
       name: "featuredProductId",

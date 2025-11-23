@@ -1,6 +1,7 @@
 import "@/styles/globals.css";
 import "styles/stats.css";
 import { SessionProvider } from "next-auth/react";
+import { Toaster } from "react-hot-toast";
 
 export default function App({
   Component,
@@ -8,7 +9,11 @@ export default function App({
 }) {
   return (
     <SessionProvider session={session}>
-      <Component {...pageProps} />
+      <>
+        <Component {...pageProps} />
+        {/* ✅ 全域 toaster */}
+        <Toaster position="top-right" />
+      </>
     </SessionProvider>
   );
 }

@@ -4,14 +4,25 @@ import { prettyDate } from "@/lib/date";
 import axios from "axios";
 import { useEffect, useState } from "react";
 import { withSwal } from "react-sweetalert2";
+import { useSession } from "next-auth/react";
+import toast from "react-hot-toast";
 
 function AdminsPage({ swal }) {
   const [email, setEmail] = useState("");
   const [adminEmails, setAdminEmails] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.isAdmin;
 
   function addAdmin(event) {
     event.preventDefault();
+
+    // ✅ 前端先檢查一次，防呆
+    if (!isAdmin) {
+      toast.error("你目前沒有管理員權限，無法新增管理員");
+      return;
+    }
+
     axios
       .post("/api/admins", { email })
       .then((response) => {
@@ -39,6 +50,12 @@ function AdminsPage({ swal }) {
     });
   }
   function deleteAdmin(_id, email) {
+    // ✅ 前端先檢查一次，直接跳 toast，不打 API
+    if (!isAdmin) {
+      toast.error("你目前沒有管理員權限，無法刪除管理員");
+      return;
+    }
+
     swal
       .fire({
         title: "Are you sure",

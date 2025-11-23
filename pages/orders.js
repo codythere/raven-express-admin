@@ -2,10 +2,29 @@ import Layout from "@/components/Layout";
 import Spinner from "@/components/Spinner";
 import axios from "axios";
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
+import toast from "react-hot-toast";
 
 export default function Orders() {
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const { data: session, status } = useSession();
+  const isAdmin = session?.user?.isAdmin;
+  const router = useRouter();
+
+  useEffect(() => {
+    if (status === "loading") return;
+    if (!isAdmin) {
+      toast.error("只有管理員可以查看所有訂單");
+      router.push("/"); // 或導回 /products
+    }
+  }, [status, isAdmin, router]);
+
+  if (!isAdmin) {
+    // 可以顯示一個空畫面，避免閃一下
+    return <Layout> </Layout>;
+  }
+
   useEffect(() => {
     setIsLoading(true);
     axios.get("/api/orders").then((response) => {

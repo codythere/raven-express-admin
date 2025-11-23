@@ -1,3 +1,5 @@
+// pages/api/auth/[...nextauth].js
+
 import NextAuth, { getServerSession } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import { MongoDBAdapter } from "@auth/mongodb-adapter";
@@ -6,37 +8,42 @@ import { Admin } from "@/models/Admin";
 import { mongooseConnect } from "@/lib/mongoose";
 
 async function isAdminEmail(email) {
+  if (!email) return false;
   await mongooseConnect();
-  return !!(await Admin.findOne({ email }));
+  const admin = await Admin.findOne({ email });
+  return !!admin;
 }
 
-const authOptions = {
-  secret: process.env.SECRET,
+export const authOptions = {
+  secret: process.env.NEXTAUTH_SECRET || process.env.SECRET,
+  adapter: MongoDBAdapter(clientPromise),
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_ID,
       clientSecret: process.env.GOOGLE_SECRET,
     }),
   ],
-  adapter: MongoDBAdapter(clientPromise),
   callbacks: {
-    session: async ({ session, token, user }) => {
-      if (await isAdminEmail(session?.user?.email)) {
-        return session;
-      } else {
-        return false;
-      }
+    async signIn() {
+      // ✅ 任何人都可以登入
+      return true;
+    },
+    async session({ session }) {
+      const email = session?.user?.email;
+      const isAdmin = await isAdminEmail(email);
+      session.user = session.user || {};
+      session.user.isAdmin = isAdmin;
+      return session;
     },
   },
+  debug: process.env.NODE_ENV === "development",
 };
 
 export default NextAuth(authOptions);
 
+// ✅ 不再寫 401、不丟 Error，只回 true / false
 export async function isAdminRequest(req, res) {
   const session = await getServerSession(req, res, authOptions);
-  if (!(await isAdminEmail(session?.user?.email))) {
-    res.status(401);
-    res.end();
-    throw "not an admin";
-  }
+  const ok = await isAdminEmail(session?.user?.email);
+  return ok;
 }

@@ -3,8 +3,13 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { withSwal } from "react-sweetalert2";
 import Spinner from "@/components/Spinner";
+import { useSession } from "next-auth/react";
+import toast from "react-hot-toast";
 
 function Categories({ swal }) {
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.isAdmin;
+
   const [editedCategory, setEditedCategory] = useState(null);
   const [name, setName] = useState("");
   const [parentCategory, setParentCategory] = useState("");
@@ -26,6 +31,13 @@ function Categories({ swal }) {
 
   async function saveCategory(Event) {
     Event.preventDefault();
+
+    // ✅ 前端先檢查一次，非 admin 直接 toast
+    if (!isAdmin) {
+      toast.error("你目前沒有管理員權限，無法儲存商品分類");
+      return;
+    }
+
     const data = {
       name,
       parentCategory,
@@ -34,17 +46,24 @@ function Categories({ swal }) {
         values: p.values.split(","),
       })),
     };
-    if (editedCategory) {
-      data._id = editedCategory._id;
-      await axios.put("/api/categories", data);
+
+    try {
+      if (editedCategory) {
+        data._id = editedCategory._id;
+        await axios.put("/api/categories", data);
+      } else {
+        await axios.post("/api/categories", data);
+      }
+      toast.success("分類已儲存");
+      setName("");
+      setParentCategory("");
+      setProperties([]);
       setEditedCategory(null);
-    } else {
-      await axios.post("/api/categories", data);
+      fetchCategories();
+    } catch (err) {
+      console.error(err);
+      toast.error("儲存分類失敗，請稍後再試");
     }
-    setName("");
-    setParentCategory("");
-    setProperties([]);
-    fetchCategories();
   }
 
   function editCategory(category) {
@@ -54,12 +73,18 @@ function Categories({ swal }) {
     setProperties(
       category.properties.map(({ name, values }) => ({
         name,
-        values: values.join(","), // 要將檔案的資料結構改成轉為 string, 這樣之後在執行 saveCategory func時使用 .split()才不會 return error
-      })),
+        values: values.join(","),
+      }))
     );
   }
 
   function deleteCategory(category) {
+    // ✅ 前端先檢查一次，非 admin 直接 toast
+    if (!isAdmin) {
+      toast.error("你目前沒有管理員權限，無法刪除商品分類");
+      return;
+    }
+
     swal
       .fire({
         title: "Are you sure",
@@ -72,17 +97,21 @@ function Categories({ swal }) {
       })
       .then(async (result) => {
         if (result.isConfirmed) {
-          const { _id } = category;
-          await axios.delete("/api/categories?_id=" + _id);
-          fetchCategories();
+          try {
+            const { _id } = category;
+            await axios.delete("/api/categories?_id=" + _id);
+            toast.success("分類已刪除");
+            fetchCategories();
+          } catch (err) {
+            console.error(err);
+            toast.error("刪除分類失敗，請稍後再試");
+          }
         }
       });
   }
 
   function addProperty() {
-    setProperties((prev) => {
-      return [...prev, { name: "", values: "" }];
-    });
+    setProperties((prev) => [...prev, { name: "", values: "" }]);
   }
 
   function handlePropertyNameChange(index, property, newName) {
@@ -102,11 +131,9 @@ function Categories({ swal }) {
   }
 
   function removeProperty(indexToRemove) {
-    setProperties((prev) => {
-      return [...prev].filter((p, pIndex) => {
-        return pIndex !== indexToRemove;
-      });
-    });
+    setProperties((prev) =>
+      prev.filter((p, pIndex) => pIndex !== indexToRemove)
+    );
   }
 
   return (
@@ -132,7 +159,9 @@ function Categories({ swal }) {
             <option value="">請選擇上層分類</option>
             {categories.length > 0 &&
               categories.map((category) => (
-                <option value={category._id}>{category.name}</option>
+                <option key={category._id} value={category._id}>
+                  {category.name}
+                </option>
               ))}
           </select>
         </div>
@@ -147,7 +176,7 @@ function Categories({ swal }) {
           </button>
           {properties.length > 0 &&
             properties.map((property, index) => (
-              <div className="flex gap-1 mb-2">
+              <div className="flex gap-1 mb-2" key={index}>
                 <input
                   type="text"
                   value={property.name}
@@ -156,7 +185,7 @@ function Categories({ swal }) {
                     handlePropertyNameChange(
                       index,
                       property,
-                      Event.target.value,
+                      Event.target.value
                     );
                   }}
                   placeholder="屬性名稱 (範例: 顏色、儲存容量...)"
@@ -169,7 +198,7 @@ function Categories({ swal }) {
                     handlePropertyValuesChange(
                       index,
                       property,
-                      Event.target.value,
+                      Event.target.value
                     );
                   }}
                   placeholder="屬性種類 (請使用逗號隔開)"
@@ -178,8 +207,8 @@ function Categories({ swal }) {
                   onClick={() => {
                     removeProperty(index);
                   }}
-                  type="button" // important! => prevent the click event from being seen as a form-posting situation
-                  className="bg-red-200 text-red-600 flex justify-center  w-[8rem]  py-1.5 rounded-sm whitespace-nowrap"
+                  type="button"
+                  className="bg-red-200 text-red-600 flex justify-center w-[8rem] py-1.5 rounded-sm whitespace-nowrap"
                 >
                   移除
                 </button>
@@ -207,7 +236,7 @@ function Categories({ swal }) {
           </button>
         </div>
       </form>
-      {/* editedCategory 不存在的話就會顯示，有點反直覺，需要思考一下 */}
+
       {!editedCategory && (
         <table className="basic mt-4">
           <thead>
@@ -230,7 +259,7 @@ function Categories({ swal }) {
 
             {categories.length > 0 &&
               categories.map((category) => (
-                <tr>
+                <tr key={category._id}>
                   <td>{category.name}</td>
                   <td>{category?.parent?.name}</td>
                   <td>
