@@ -15,18 +15,18 @@ export default function Orders() {
   const isAdmin = session?.user?.isAdmin;
   const router = useRouter();
 
-  useEffect(() => {
-    if (status === "loading") return;
-    if (!isAdmin) {
-      toast.error("只有管理員可以查看所有訂單");
-      router.push("/"); // 或導回 /products
-    }
-  }, [status, isAdmin, router]);
+  // useEffect(() => {
+  //   if (status === "loading") return;
+  //   if (!isAdmin) {
+  //     toast.error("只有管理員可以查看所有訂單");
+  //     router.push("/"); // 或導回 /products
+  //   }
+  // }, [status, isAdmin, router]);
 
-  if (!isAdmin) {
-    // 可以顯示一個空畫面，避免閃一下
-    return <Layout> </Layout>;
-  }
+  // if (!isAdmin) {
+  //   // 可以顯示一個空畫面，避免閃一下
+  //   return <Layout> </Layout>;
+  // }
 
   useEffect(() => {
     setIsLoading(true);
